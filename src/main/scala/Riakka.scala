@@ -11,55 +11,75 @@ import JsonParser._
 import Extraction._
 import java.util.Date
 
-// missing: vclock, vtag, lastmod
-case class RiakMetadata(bucket: String, key: String, links: Seq[Seq[String]])
-
-object Riakka {	
-  def apply() = new Riakka("localhost", 8098)
+object % {
+  def apply(id: (Symbol, String)): % = %(id._1.name, id._2, List(), None, None, None)
 }
 
-class Riakka(val hostname: String, val port: Int) {
+case class %(bucket: String, key: String, var links: List[List[String]], var vclock: Option[String], var vtag: Option[String], var lastmod: Option[String]) {
+  def id = bucket + "/" + key
+}
+// ask Symbol#toString to be patched in Scala 2.8 - otherwise ask Joni to support it in lift-json
+// case class RiakLink(bucket: String, key: String, tag: String) // make buckets Symbols and lastmods Dates
+
+object Jiak {	
+  def init = new Jiak("localhost", 8098)
+}
+
+class Jiak(val hostname: String, val port: Int) {
 	
   import dispatch._
 	
   private val http = new Http
   private implicit val db = :/(hostname, port) / "jiak"
+  private implicit val formats = Serialization.formats(NoTypeHints)
 
   import net.lag.logging.Logger
   private val log = Logger.get
 	
   /** Find all keys of a given bucket and return in a Seq. */
-  def findAll(bucket: String): Seq[String] = {
-	val response = http(db / bucket as_str)
+  def find_all(bucket: Symbol): Seq[String] = {
+	val response = http(db / bucket.name as_str)
 	for { JString(key) <- parse(response) \\ "keys" } yield key
   }
-  // Would this be feasible? e.g. val list = db.find[BlogPost] 
-  //def find[A](implicit m: scala.reflect.Manifest[A]): Seq[A] = 
+  // later on support: def find_all[A](implicit m: scala.reflect.Manifest[A]): Seq[A]
 
-  // should be guarded and wrapped in an Option?
-  def get(metadata: RiakMetadata): JValue = {
-    var req = db / metadata.bucket / metadata.key
-	val resp = http(req as_str)
-	val Some(JField(_, obj)) = parse(resp) find {
-	     case JField("object", _) => true
-	     case _ => false
-	   }
-	return obj
+  def get(metadata: %): (%, JObject) = {
+    var request = db / metadata.id
+    val response = try {
+	  http(request as_str)
+	} catch {
+	  case StatusCode(404, _) => throw new NoSuchElementException
+	}
+	parse(response)
   }
-  // support entities in the future => get[A] : (RiakMetadata, A)
+  // later on support: def get[A](metadata: %)(implicit m: scala.reflect.Manifest[A]): A
+  // as well as plain structs made up of Lists, Tuples, etc => all things convertable to JObject
 
-  def save(metadata: RiakMetadata, obj: JObject): Unit = {
-	http((db / metadata.bucket / metadata.key <:< Map("Content-Type" -> "application/json") <<< getJson(metadata, obj)) >|)
+  def save(metadata: %, obj: JObject): Unit = {
+	http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<< tuple_to_json(metadata, obj) >|))
+  }
+
+  def save_with_response(metadata: %, obj: JObject): Tuple2[%, JObject] = {
+    val response = http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<? Map("returnbody" -> true) <<< (metadata, obj) as_str))
+    parse(response)
   }
   
-  def delete(metadata: RiakMetadata): Unit = http(db / metadata.bucket / metadata.key <--() >|) // <<? Map("vclock" -> ...)
+  def delete(metadata: %): Unit = {
+    http(db / metadata.id <--() >|) // <<? Map("vclock" -> ...)
+  }
 
-  private def getJson(metadata: RiakMetadata, obj: JValue): String = {
-    implicit val formats = Serialization.formats(NoTypeHints) // ShortTypeHints(classOf[Post] :: Nil)
+  private implicit def tuple_to_json(metadata: %, obj: JObject): String = {
     val m = decompose(metadata)
     val riak_obj = m merge JObject(JField("object", obj) :: Nil)
+    println("Sending to server\n" + pretty(render(riak_obj)))
     compact(render(riak_obj))
   }
-  // support entities, getJson[A]
+
+  private implicit def json_to_tuple(json: JValue): Tuple2[%, JObject] = {
+	println("Receiving from server\n" + pretty(render(json)))
+	val metadata = json.extract[%]
+	val JField(_, obj) = json \ "object"
+	return (metadata, obj.asInstanceOf[JObject]) // it has to be a JSON object
+  }
 
 }

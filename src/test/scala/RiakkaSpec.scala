@@ -18,17 +18,14 @@ case class Post(date: Date, id: String, title: String, body: String) // extends 
 class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter {
 	
   // override def beforeAll
-  val db = Riakka()
+  val db = Jiak.init
   val random_key = java.util.UUID.randomUUID.toString
-  val default_bucket = "test"
-	
-  describe("A given JSON structure") {
+  val default_bucket = 'test // '
+  val metadata = %(default_bucket -> random_key)
+
+  describe("A given object") {
 
     it("should be persisted and retrieved") {
-
-      //val post = Post(new Date, "id", "title", "body")
-	  //Riakka.fromJson(m, obj)
-	  //Riakka(m, post)
 
 	  val obj: JObject = 
 	  ("person" ->
@@ -42,28 +39,35 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter {
 	    )
 	  )
 	  
-	  val metadata = RiakMetadata(default_bucket, random_key, List())
-	  
 	  db save (metadata, obj)
-	  val obj2 = db get metadata
+	  val (metadata2, obj2) = db get metadata
 	  assert(obj == obj2)
-	  println("Under key " + random_key + " the following JSON was retrieved:")
-	  println(pretty(render(obj2)))
 	
     }
 
-  	describe("The datastore") {
-
-	    it("should give back a set of stored keys") {
-		  // hmmm... right now here only for demo purposes
-		  db findAll default_bucket foreach (println(_))
-		}
-		
-		it("should be able to delete a key") {
-		  	db delete RiakMetadata(default_bucket, random_key, List())
-		}
+    it("should be updated") {
+	   val (first_metadata, first_object) = db get metadata
+	   //db save (metadata, o)
+	   val second_object = JObject(List(JField("a",JInt(98))))
+	   db save (first_metadata, second_object)
+	   val (third_metadata, third_object) = db get first_metadata
+	   assert(second_object == third_object)
 	}
+	
+	it("should be deleted") {
+  	  db delete metadata
+      intercept[NoSuchElementException] { db get metadata }
+    }
 
   }
-	
+
+  describe("The datastore") {
+   
+    it("should return a set of stored keys for a given bucket") {
+      // hmmm... right now here only for demo purposes
+	  db find_all default_bucket foreach (println(_))
+    }
+
+  }
+
 }
