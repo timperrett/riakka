@@ -19,7 +19,9 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter {
 	
   // override def beforeAll
   val db = Jiak.init
+  
   val random_key = java.util.UUID.randomUUID.toString
+  val random_key_2 = java.util.UUID.randomUUID.toString
   val default_bucket = 'test // '
   val metadata = %(default_bucket -> random_key)
 
@@ -47,11 +49,19 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter {
 
     it("should be updated") {
 	   val (first_metadata, first_object) = db get metadata
-	   //db save (metadata, o)
-	   val second_object = JObject(List(JField("a",JInt(98))))
+	   val second_object: JObject = ("answer" -> 42)
+	   val linked_object: JObject = ("am_i_being_linked?" -> "yes")
+	   db save (%(default_bucket -> random_key_2), linked_object)
+	   first_metadata.links_=(List(List(default_bucket.name, random_key_2, "_")))
 	   db save (first_metadata, second_object)
 	   val (third_metadata, third_object) = db get first_metadata
 	   assert(second_object == third_object)
+	}
+	
+	it("should walk links") {
+	   val linked_objects = db walk (metadata, WalkSpec(default_bucket, None, None))
+	   val linked_object = db get (%(default_bucket -> random_key_2))
+	   assert(linked_objects.first == linked_object)
 	}
 	
 	it("should be deleted") {

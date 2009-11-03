@@ -12,16 +12,17 @@ import Extraction._
 import java.util.Date
 
 object % {
-  def apply(id: (Symbol, String)): % = %(id._1.name, id._2, List(), None, None, None)
+  def apply(id: (Symbol, String)): % = %(id._1.name, id._2, None, None, None)
 }
 
-case class %(bucket: String, key: String, var links: List[List[String]], var vclock: Option[String], var vtag: Option[String], var lastmod: Option[String]) {
+case class %(bucket: String, key: String, var vclock: Option[String], var vtag: Option[String], var lastmod: Option[String]) {
   def id = bucket + "/" + key
+  var links: List[List[String]] = List() 
 }
 // ask Symbol#toString to be patched in Scala 2.8 - otherwise ask Joni to support it in lift-json
 // case class RiakLink(bucket: String, key: String, tag: String) // make buckets Symbols and lastmods Dates
 
-class WalkSpec(bucket: Symbol, tag: Option[String], accumulate: Option[Boolean]) {
+case class WalkSpec(bucket: Symbol, tag: Option[String], accumulate: Option[Boolean]) {
   override def toString = bucket.name + "," + tag.getOrElse("_") + "," + accumulate.getOrElse("_")
 }
 
@@ -72,20 +73,25 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) {
     http(db / metadata.id <--() >|) // <<? Map("vclock" -> ...)
   }
 
-  def walk(metadata: %, spec: WalkSpec*): Seq[(%, JObject)] = List()
+  def walk(metadata: %, specs: WalkSpec*): Seq[(%, JObject)] = {
+    val response = http(db / metadata.id / specs.mkString("/") as_str)
+    val json = parse(response)
+    val JField(_, JArray(riak_objects)) = (json \ "results")
+    for (riak_object <- riak_objects) yield riak_object
+  }
 
   private implicit def tuple_to_json(metadata: %, obj: JObject): String = {
     val m = decompose(metadata)
-    val riak_obj = m merge JObject(JField("object", obj) :: Nil)
-    println("Sending to server\n" + pretty(render(riak_obj)))
-    compact(render(riak_obj))
+    val riak_object = m merge JObject(JField("object", obj) :: Nil)
+    log.info("Sending to server\n" + pretty(render(riak_object)))
+    compact(render(riak_object))
   }
 
-  private implicit def json_to_tuple(json: JValue): (%, JObject) = {
-	println("Receiving from server\n" + pretty(render(json)))
+  private implicit def jvalue_to_tuple(json: JValue): (%, JObject) = {
+	log.debug("Receiving from server\n" + pretty(render(json)))
 	val metadata = json.extract[%]
-	val JField(_, obj) = json \ "object"
-	return (metadata, obj.asInstanceOf[JObject]) // it has to be a JSON object
+	val JField(_, JObject(obj)) = json \ "object"
+	return (metadata, obj)
   }
 
 }
