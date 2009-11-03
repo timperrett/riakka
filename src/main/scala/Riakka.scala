@@ -21,16 +21,20 @@ case class %(bucket: String, key: String, var links: List[List[String]], var vcl
 // ask Symbol#toString to be patched in Scala 2.8 - otherwise ask Joni to support it in lift-json
 // case class RiakLink(bucket: String, key: String, tag: String) // make buckets Symbols and lastmods Dates
 
-object Jiak {	
-  def init = new Jiak("localhost", 8098)
+class WalkSpec(bucket: Symbol, tag: Option[String], accumulate: Option[Boolean]) {
+  override def toString = bucket.name + "," + tag.getOrElse("_") + "," + accumulate.getOrElse("_")
 }
 
-class Jiak(val hostname: String, val port: Int) {
+object Jiak {
+  def init = new Jiak("localhost", 8098, "jiak")
+}
+
+class Jiak(val hostname: String, val port: Int, val jiak_base: String) {
 	
   import dispatch._
 	
   private val http = new Http
-  private implicit val db = :/(hostname, port) / "jiak"
+  private implicit val db = :/(hostname, port) / jiak_base
   private implicit val formats = Serialization.formats(NoTypeHints)
 
   import net.lag.logging.Logger
@@ -59,7 +63,7 @@ class Jiak(val hostname: String, val port: Int) {
 	http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<< tuple_to_json(metadata, obj) >|))
   }
 
-  def save_with_response(metadata: %, obj: JObject): Tuple2[%, JObject] = {
+  def save_with_response(metadata: %, obj: JObject): (%, JObject) = {
     val response = http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<? Map("returnbody" -> true) <<< (metadata, obj) as_str))
     parse(response)
   }
@@ -68,6 +72,8 @@ class Jiak(val hostname: String, val port: Int) {
     http(db / metadata.id <--() >|) // <<? Map("vclock" -> ...)
   }
 
+  def walk(metadata: %, spec: WalkSpec*): Seq[(%, JObject)] = List()
+
   private implicit def tuple_to_json(metadata: %, obj: JObject): String = {
     val m = decompose(metadata)
     val riak_obj = m merge JObject(JField("object", obj) :: Nil)
@@ -75,7 +81,7 @@ class Jiak(val hostname: String, val port: Int) {
     compact(render(riak_obj))
   }
 
-  private implicit def json_to_tuple(json: JValue): Tuple2[%, JObject] = {
+  private implicit def json_to_tuple(json: JValue): (%, JObject) = {
 	println("Receiving from server\n" + pretty(render(json)))
 	val metadata = json.extract[%]
 	val JField(_, obj) = json \ "object"
