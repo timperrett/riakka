@@ -47,7 +47,7 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) {
   }
   
   def delete(metadata: %): Unit = {
-    http(db / metadata.id <--() >|)
+    http((db / metadata.id DELETE) >|)
   }
 
   def walk(metadata: %, specs: WalkSpec*): Seq[(%, JObject)] = {
