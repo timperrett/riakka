@@ -2,30 +2,26 @@ package riakka
 
 import org.scalatest.{Spec, BeforeAndAfter}
 import org.scalatest.matchers.ShouldMatchers
-import java.util.Date
+
 import net.liftweb.json._
-import net.liftweb.json.Serialization
-import net.liftweb.json.Serialization._
-import net.liftweb.json.JsonParser._
-import net.liftweb.json.DateFormat
 import JsonAST._
 import JsonDSL._
 import JsonParser._
 import Extraction._
 
-case class Post(date: Date, id: String, title: String, body: String) // extends Riak
-
 class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter {
 	
   // override def beforeAll
+  private val log = net.lag.logging.Logger.get
   val db = Jiak.init
   
-  val random_key = java.util.UUID.randomUUID.toString
-  val random_key_2 = java.util.UUID.randomUUID.toString
-  val default_bucket = 'test // '
+  def rand() = java.util.UUID.randomUUID.toString
+  val random_key = rand()
+  val random_key_2 = rand()
+  val default_bucket = Symbol("riakka-" + rand())
   val metadata = %(default_bucket -> random_key)
 
-  describe("A given object") {
+  describe("A given JSON object") {
 
     it("should be persisted and retrieved") {
 
@@ -44,24 +40,30 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter {
 	  db save (metadata, obj)
 	  val (metadata2, obj2) = db get metadata
 	  assert(obj == obj2)
-	
     }
 
-    it("should be updated") {
-	   val (first_metadata, first_object) = db get metadata
-	   val second_object: JObject = ("answer" -> 42)
-	   val linked_object: JObject = ("am_i_being_linked?" -> "yes")
-	   db save (%(default_bucket -> random_key_2), linked_object)
-	   first_metadata.links_=(List(List(default_bucket.name, random_key_2, "_")))
-	   db save (first_metadata, second_object)
-	   val (third_metadata, third_object) = db get first_metadata
-	   assert(second_object == third_object)
+    it("should be updated, twice in a row") {
+	   val object_1: JObject = ("answer" -> 42)
+       val object_2: JObject = ("answer" -> 46)
+	   
+	   val (m_other, _) = db save_with_response (%(default_bucket, "object"), object_1)
+	   db save (m_other, object_2)
+	   assert((db get m_other)._2 == object_2)
+	   db delete m_other
 	}
 	
-	it("should walk links") {
-	   val linked_objects = db walk (metadata, WalkSpec(default_bucket, None, None))
-	   val linked_object = db get (%(default_bucket -> random_key_2))
-	   assert(linked_objects.first == linked_object)
+	it("should set and walk links") {
+      val (first_metadata, first_object) = db get metadata
+      val linked_object: JObject = ("am_i_being_linked?" -> true)
+      val (linked_object_metadata, _) = db save_with_response (%(default_bucket -> random_key_2), linked_object)
+      first_metadata.link_+(Link(default_bucket, random_key_2, "_"))
+      // until we fix the Metadata/Links models - and things can look like:
+      // val first_metadata_with_link = %(first_metadata, Link(default_bucket, random_key_2, "_"))
+      db save (first_metadata, first_object)
+
+	  val linked_objects = db walk (metadata, WalkSpec(default_bucket, None, None))
+	  log.info("Date of last modification ===> " + linked_object_metadata.lastmod.getOrElse("Sorry dude, no date here"))
+	  assert(linked_objects.first._2 == linked_object)
 	}
 	
 	it("should be deleted") {
