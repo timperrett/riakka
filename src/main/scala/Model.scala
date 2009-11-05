@@ -28,6 +28,10 @@ case class WalkSpec(bucket: Symbol, tag: Option[String], accumulate: Option[Bool
   override def toString = bucket.name + "," + tag.getOrElse("_") + "," + accumulate.getOrElse("_")
 }
 
+class RichJValue(value: JValue) {
+  def to_json = pretty(render(value)) 
+}
+
 private[riakka] trait Logging {
   val log = net.lag.logging.Logger.get
 }

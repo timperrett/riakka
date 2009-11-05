@@ -9,6 +9,7 @@ import java.io._
 
 object Jiak {
   def init = new Jiak("localhost", 8098, "jiak")
+  implicit def jvalue_to_richjvalue(value: JValue) = new RichJValue(value)
 }
 
 class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends Logging {
@@ -50,7 +51,7 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
 	http(:/(hostname, port) / "raw" / metadata.id >>> out)
   }
 
-  def save(metadata: %, obj: JObject): Unit = {
+  def save(metadata: %, obj: JValue): Unit = {
 	http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<< tuple_to_json(metadata, obj) >|))
   }
 
@@ -78,7 +79,7 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
 
   /** Local implicit functions */
 
-  private implicit def tuple_to_json(metadata: %, obj: JObject): String = {
+  private implicit def tuple_to_json(metadata: %, obj: JValue): String = {
 	implicit val formats = Serialization.formats(NoTypeHints)
     val m = decompose(metadata)
     val riak_object = m merge JObject(JField("object", obj) :: Nil)
@@ -95,6 +96,8 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
 	val JField(_, JObject(obj)) = json \ "object"
 	return (metadata, obj)
   }
+
+
 
   private class PutFileRequest(request: Request) {
     def put_file(file: File, content_type: String) = request next {
