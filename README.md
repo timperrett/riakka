@@ -21,20 +21,22 @@ Riak
 
 First off, you should be familiar with Riak. There is information available [here](http://riak.basho.com).
 Some other resources of interest:
-  - [Riak Presentation at NYC NoSQL](http://riak.basho.com/nyc-nosql/)
-  - [Intro to Riak screencast](http://videocodechat.com/post/219711761/intro-to-riak-with-bryan-fink)
-  - [Riak Demo: Stickynotes](http://blog.beerriot.com/2009/08/17/riak-demo-stickynotes/)
-  - [Module jiak_resource Edoc](http://riak.basho.com/edoc/jiak_resource.html)
-  - ...and we're all looking forward to a wiki :)
+
+ - [Riak Presentation at NYC NoSQL](http://riak.basho.com/nyc-nosql/)
+ - [Intro to Riak screencast](http://videocodechat.com/post/219711761/intro-to-riak-with-bryan-fink)
+ - [Riak Demo: Stickynotes](http://blog.beerriot.com/2009/08/17/riak-demo-stickynotes/)
+ - [Module jiak_resource Edoc](http://riak.basho.com/edoc/jiak_resource.html)
+ - ...and we're all looking forward to a wiki :)
 
 Quick overview
 --------------
 
 Riak (through its HTTP interface, Jiak) exposes documents with some associated metadata (all in JSON format). For example:
 
-      {"bucket":"bucket", "key":"foo", "object":{"bar":"Hello World"}, "links":[["bucket","key","tag"], ["bucket2","key2","tag2"]]}"
+    {"bucket":"bucket", "key":"foo", "object":{"bar":"baz"}, "links":[["bucket","key","tag"], ["b2","key2","tag2"]]}"
 
 Riakka will consistently return this structure splitted up in two: A tuple consisting of
+
  - a metadata object (of type `%`) that holds important data such as `bucket`, `key`, `vclock`, `links`.
  - the actual object (of type `JObject`) => see [lift-json](http://github.com/dpp/liftweb/blob/master/lift-base/lift-json)
 
@@ -43,7 +45,7 @@ Most query methods will also require a `%` object. There is a convenience method
 Features by example
 -------------------
 
-Fire a Scala console (within SBT):
+Fire a Scala console (within `sbt`):
 
         > console
 
@@ -90,6 +92,6 @@ To be done
  - Support for entities, transparent serialization/deserialization to/from JSON. Should be not a big deal, as lift-json supports it wonderfully.
  - Make concepts more straightforward, improve documentation and test coverage, as usual.
 
-Needless to say, fork and send pull requests.
+Needless to say, fork and send pull requests. And make use of Github's issue tracker, too.
 
 Citing [Paul from Ruby's RiakRest](http://github.com/wcpr/riakrest): "Go forth and Riak!"
