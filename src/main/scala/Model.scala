@@ -28,6 +28,27 @@ case class WalkSpec(bucket: Symbol, tag: Option[String], accumulate: Option[Bool
   override def toString = bucket.name + "," + tag.getOrElse("_") + "," + accumulate.getOrElse("_")
 }
 
-trait Logging {
+private[riakka] trait Logging {
   val log = net.lag.logging.Logger.get
 }
+
+import dispatch._
+
+private[riakka] trait WhenAware {
+  def when[T](check: Int => Boolean)(handler: Handler[T]): T
+}
+
+/* This behaviour gives us fine-grained control on dealing with low-level exceptions */
+private[riakka] trait RiakkaExceptionHandler extends WhenAware {
+  abstract override def when[T](check: Int => Boolean)(handler: Handler[T]): T = {
+    try {
+      super.when(check)(handler)
+    } catch {
+	  case StatusCode(304, _) => throw NotModified
+      case StatusCode(404, _) => throw new NoSuchElementException
+    }
+  }
+}
+
+abstract class RiakkaException extends RuntimeException
+object NotModified extends RiakkaException

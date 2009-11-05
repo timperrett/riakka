@@ -9,10 +9,9 @@ import JsonDSL._
 import JsonParser._
 import Extraction._
 
-class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter {
+class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter with Logging {
 	
   // override def beforeAll
-  private val log = net.lag.logging.Logger.get
   val db = Jiak.init
   
   def rand() = java.util.UUID.randomUUID.toString
@@ -40,6 +39,14 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter {
 	  db save (metadata, obj)
 	  val (metadata2, obj2) = db get metadata
 	  assert(obj == obj2)
+    }
+
+    it("should return None when providing back the same vtag or Some if they don't match") {
+	   val (metadata_with_vtag, original_object) = db get metadata
+	   val (_, obj) = db conditional_get metadata_with_vtag
+	   assert(obj == None)
+	   val (_, obj2) = db conditional_get metadata
+	   assert(obj2 == Some(original_object))
     }
 
     it("should be updated, twice in a row") {
@@ -77,7 +84,8 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter {
    
     it("should return a set of stored keys for a given bucket") {
       // hmmm... right now here only for demo purposes
-	  db find_all default_bucket foreach (println(_))
+	  val all = db find_all default_bucket mkString(", ")
+	  log.info(all)
     }
 
   }

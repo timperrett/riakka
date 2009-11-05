@@ -13,9 +13,9 @@ object Jiak {
 
 class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends Logging {
 
-  import dispatch._
-  private val http = new Http
-  private implicit val db = :/(hostname, port) / jiak_base
+  import dispatch._	
+  private val http = new Http with RiakkaExceptionHandler
+  private val db = :/(hostname, port) / jiak_base
 
   /** Find all keys of a given bucket and return in a Seq. */
   def find_all(bucket: Symbol): Seq[String] = {
@@ -26,15 +26,24 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
 
   def get(metadata: %): (%, JObject) = {
     val request = db / metadata.id
-    val response = try {
-	  http(request as_str)
-	} catch {
-	  case StatusCode(404, _) => throw new NoSuchElementException
-	}
+    val response = http(request as_str)
 	parse(response)
   }
   // later on support: def get[A](metadata: %)(implicit m: scala.reflect.Manifest[A]): A
   // as well as plain structs made up of Lists, Tuples, etc => all things convertable to JObject
+
+  def conditional_get(metadata: %): (%, Option[JObject]) = {
+    try {
+      val request0 = db / metadata.id
+      val request = metadata.vtag match {
+        case Some(vtag) => request0 <:< Map("If-None-Match" -> ("\"" + vtag + "\""))
+        case None => request0
+      }
+      (metadata, Some(parse(http(request as_str))._2))
+    } catch {
+      case NotModified => (metadata, None)
+    }
+  }
 
   /** Gets an attachment from raw -- WARNING: only works in Riak trunk **/ 
   def get_attachment(metadata: %, out: OutputStream): Unit = {
