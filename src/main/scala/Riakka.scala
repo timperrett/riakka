@@ -5,6 +5,7 @@ import JsonAST._
 import JsonDSL._
 import JsonParser._
 import Extraction._
+import java.io._
 
 object Jiak {
   def init = new Jiak("localhost", 8098, "jiak")
@@ -17,7 +18,7 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) {
   import dispatch._
   private val http = new Http
   private implicit val db = :/(hostname, port) / jiak_base
-	
+
   /** Find all keys of a given bucket and return in a Seq. */
   def find_all(bucket: Symbol): Seq[String] = {
 	val response = http(db / bucket.name as_str)
@@ -26,7 +27,7 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) {
   // later on support: def find_all[A](implicit m: scala.reflect.Manifest[A]): Seq[A]
 
   def get(metadata: %): (%, JObject) = {
-    var request = db / metadata.id
+    val request = db / metadata.id
     val response = try {
 	  http(request as_str)
 	} catch {
@@ -37,6 +38,11 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) {
   // later on support: def get[A](metadata: %)(implicit m: scala.reflect.Manifest[A]): A
   // as well as plain structs made up of Lists, Tuples, etc => all things convertable to JObject
 
+  /** Gets an attachment from raw -- WARNING: only works in Riak trunk **/ 
+  def get_attachment(metadata: %, out: OutputStream): Unit = {
+	http(:/(hostname, port) / "raw" / metadata.id >>> out)
+  }
+
   def save(metadata: %, obj: JObject): Unit = {
 	http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<< tuple_to_json(metadata, obj) >|))
   }
@@ -45,7 +51,13 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) {
     val response = http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<? Map("returnbody" -> true) <<< tuple_to_json(metadata, obj) as_str))
     parse(response)
   }
-  
+
+  /** Saves an attachment to raw -- WARNING: only works in Riak trunk **/
+  def save_attachment(metadata: %, file: File, content_type: String) = {
+	implicit def r2r(request: Request) = new PutFileRequest(request)
+    http(:/(hostname, port) / "raw" / metadata.id put_file (file, content_type) >|)
+  }
+
   def delete(metadata: %): Unit = {
     http((db / metadata.id DELETE) >|)
   }
@@ -75,6 +87,16 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) {
 	val metadata = json.extract[%]
 	val JField(_, JObject(obj)) = json \ "object"
 	return (metadata, obj)
+  }
+
+  private class PutFileRequest(request: Request) {
+    def put_file(file: File, content_type: String) = request next {
+      import org.apache.http.client.methods.HttpPut
+      import org.apache.http.entity.FileEntity
+      val put_method = new HttpPut
+      put_method setEntity new FileEntity(file, content_type)
+      Request.mimic(put_method) _
+    }
   }
 
 }
