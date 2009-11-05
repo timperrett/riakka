@@ -14,22 +14,18 @@ object Jiak {
 
 class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends Logging {
 
-  import dispatch._	
+  import dispatch._
   private val http = new Http with RiakkaExceptionHandler
   private val db = :/(hostname, port) / jiak_base
 
   /** Find all keys of a given bucket and return in a Seq. */
   def find_all(bucket: Symbol): Seq[String] = {
-	val response = http(db / bucket.name as_str)
-	for { JString(key) <- parse(response) \\ "keys" } yield key
+    val response = http(db / bucket.name as_str)
+    for { JString(key) <- parse(response) \\ "keys" } yield key
   }
   // later on support: def find_all[A](implicit m: scala.reflect.Manifest[A]): Seq[A]
 
-  def get(metadata: %): (%, JObject) = {
-    val request = db / metadata.id
-    val response = http(request as_str)
-	parse(response)
-  }
+  def get(metadata: %): (%, JObject) = parse(http(db / metadata.id as_str))
   // later on support: def get[A](metadata: %)(implicit m: scala.reflect.Manifest[A]): A
   // as well as plain structs made up of Lists, Tuples, etc => all things convertable to JObject
 
@@ -46,29 +42,26 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
     }
   }
 
-  /** Gets an attachment from raw -- WARNING: only works in Riak trunk **/ 
-  def get_attachment(metadata: %, out: OutputStream): Unit = {
-	http(:/(hostname, port) / "raw" / metadata.id >>> out)
-  }
+  /** Gets an attachment from raw -- WARNING: only works in Riak trunk **/
+  def get_attachment(metadata: %, out: OutputStream): Unit = http(:/(hostname, port) / "raw" / metadata.id >>> out)
 
   def save(metadata: %, obj: JValue): Unit = {
-	http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<< tuple_to_json(metadata, obj) >|))
+    http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<< tuple_to_json(metadata, obj) >|))
   }
 
   def save_with_response(metadata: %, obj: JObject): (%, JObject) = {
-    val response = http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<? Map("returnbody" -> true) <<< tuple_to_json(metadata, obj) as_str))
+    val handler = db / metadata.id <:< Map("Content-Type" -> "application/json") <<? Map("returnbody" -> true) <<< tuple_to_json(metadata, obj)
+    val response = http(handler as_str)
     parse(response)
   }
 
   /** Saves an attachment to raw -- WARNING: only works in Riak trunk **/
   def save_attachment(metadata: %, file: File, content_type: String) = {
-	implicit def r2r(request: Request) = new PutFileRequest(request)
+    implicit def r2r(request: Request) = new PutFileRequest(request)
     http(:/(hostname, port) / "raw" / metadata.id put_file (file, content_type) >|)
   }
 
-  def delete(metadata: %): Unit = {
-    http((db / metadata.id DELETE) >|)
-  }
+  def delete(metadata: %): Unit = http((db / metadata.id DELETE) >|)
 
   def walk(metadata: %, specs: WalkSpec*): Seq[(%, JObject)] = {
     val response = http(db / metadata.id / specs.mkString("/") as_str)
@@ -80,7 +73,7 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
   /** Local implicit functions */
 
   private implicit def tuple_to_json(metadata: %, obj: JValue): String = {
-	implicit val formats = Serialization.formats(NoTypeHints)
+    implicit val formats = Serialization.formats(NoTypeHints)
     val m = decompose(metadata)
     val riak_object = m merge JObject(JField("object", obj) :: Nil)
     log.info("Sending to server\n" + pretty(render(riak_object)))
@@ -88,16 +81,14 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
   }
 
   private implicit def jvalue_to_tuple(json: JValue): (%, JObject) = {
-	log.info("Receiving from server\n" + pretty(render(json)))
-	implicit val formats = new DefaultFormats {
+    log.info("Receiving from server\n" + pretty(render(json)))
+    implicit val formats = new DefaultFormats {
         override def dateFormatter = new java.text.SimpleDateFormat("E, dd MMM yyyy HH:mm:ss ZZZ")
       }
-	val metadata = json.extract[%]
-	val JField(_, JObject(obj)) = json \ "object"
-	return (metadata, obj)
+    val metadata = json.extract[%]
+    val JField(_, JObject(obj)) = json \ "object"
+    return (metadata, obj)
   }
-
-
 
   private class PutFileRequest(request: Request) {
     def put_file(file: File, content_type: String) = request next {

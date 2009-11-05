@@ -29,7 +29,7 @@ case class WalkSpec(bucket: Symbol, tag: Option[String], accumulate: Option[Bool
 }
 
 class RichJValue(value: JValue) {
-  def to_json = pretty(render(value)) 
+  def to_json = pretty(render(value))
 }
 
 private[riakka] trait Logging {
@@ -48,7 +48,7 @@ private[riakka] trait RiakkaExceptionHandler extends WhenAware {
     try {
       super.when(check)(handler)
     } catch {
-	  case StatusCode(304, _) => throw NotModified
+    case StatusCode(304, _) => throw NotModified
       case StatusCode(404, _) => throw new NoSuchElementException
     }
   }
