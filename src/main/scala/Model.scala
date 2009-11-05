@@ -18,16 +18,16 @@ object % {
 class %(val bucket: String, val key: String, val vclock: Option[String], val vtag: Option[String], val lastmod: Option[Date]) {
   def id = bucket + "/" + key
   private var links: List[List[String]] = List() // this mutable thingy to be replaced
-  def link_+(link: Link): Unit = { links = links ::: List(List(link.bucket.name, link.key, link.tag)) }
+  def link_+(link: Link) = links ::= List(link.bucket.name, link.key, link.tag)
 }
 // make bucket a Symbol, when upgrading to cutting-edge lift-json (thanks Joni!)
-
-object Link {
-  def from_json(v: JValue) = { val JArray(List(JString(a), JString(b), JString(c))) = v ; new Link(Symbol(a), b, c) }
-}
 
 case class Link(val bucket: Symbol, val key: String, val tag: String)
 
 case class WalkSpec(bucket: Symbol, tag: Option[String], accumulate: Option[Boolean]) {
   override def toString = bucket.name + "," + tag.getOrElse("_") + "," + accumulate.getOrElse("_")
+}
+
+trait Logging {
+  val log = net.lag.logging.Logger.get
 }

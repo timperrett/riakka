@@ -11,9 +11,7 @@ object Jiak {
   def init = new Jiak("localhost", 8098, "jiak")
 }
 
-class Jiak(val hostname: String, val port: Int, val jiak_base: String) {
-
-  private val log = net.lag.logging.Logger.get	
+class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends Logging {
 
   import dispatch._
   private val http = new Http
