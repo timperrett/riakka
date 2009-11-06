@@ -17,6 +17,7 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter with Logging
   def rand() = java.util.UUID.randomUUID.toString
   val random_key = rand()
   val random_key_2 = rand()
+  val random_key_3 = rand()
   val default_bucket = Symbol("riakka-" + rand())
   val metadata = %(default_bucket -> random_key)
 
@@ -59,18 +60,21 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter with Logging
       db delete m_other
     }
 
-    it("should set and walk links") {
+    it("should set and walk links") { // make this more clear
       val (first_metadata, first_object) = db get metadata
       val linked_object: JObject = ("am_i_being_linked?" -> true)
+      val linked_object_2: JObject = ("am_i_being_linked?" -> "also true")
       val (linked_object_metadata, _) = db save_with_response (%(default_bucket -> random_key_2), linked_object)
+      db save (%(default_bucket -> random_key_3), linked_object_2)
       first_metadata.link_+(Link(default_bucket, random_key_2, "_"))
+      first_metadata.link_+(Link(default_bucket, random_key_3, "_"))
       // until we fix the Metadata/Links models - and things can look like:
       // val first_metadata_with_link = %(first_metadata, Link(default_bucket, random_key_2, "_"))
       db save (first_metadata, first_object)
 
       val linked_objects = db walk (metadata, WalkSpec(default_bucket, None, None))
       log.info("Date of last modification ===> " + linked_object_metadata.lastmod.getOrElse("Sorry dude, no date here"))
-      assert(linked_objects.first._2 == linked_object)
+      assert(linked_objects exists { _._2 == linked_object })
     }
 
     it("should be deleted") {

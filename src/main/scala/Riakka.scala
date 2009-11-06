@@ -66,7 +66,7 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
   def walk(metadata: %, specs: WalkSpec*): Seq[(%, JObject)] = {
     val response = http(db / metadata.id / specs.mkString("/") as_str)
     val json = parse(response)
-    val JField(_, JArray(riak_objects)) = (json \ "results")
+    val JField(_, JArray(List(JArray(riak_objects)))) = (json \ "results")
     for (riak_object <- riak_objects) yield riak_object
   }
 

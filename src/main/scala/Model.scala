@@ -48,7 +48,7 @@ private[riakka] trait RiakkaExceptionHandler extends WhenAware {
     try {
       super.when(check)(handler)
     } catch {
-    case StatusCode(304, _) => throw NotModified
+      case StatusCode(304, _) => throw NotModified
       case StatusCode(404, _) => throw new NoSuchElementException
     }
   }
