@@ -57,8 +57,7 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
 
   /** Saves an attachment to raw -- WARNING: only works in Riak trunk **/
   def save_attachment(metadata: %, file: File, content_type: String) = {
-    implicit def r2r(request: Request) = new PutFileRequest(request)
-    http(:/(hostname, port) / "raw" / metadata.id put_file (file, content_type) >|)
+    http(:/(hostname, port) / "raw" / metadata.id <<< (file, content_type) >|)
   }
 
   def delete(metadata: %): Unit = http((db / metadata.id DELETE) >|)
@@ -88,16 +87,6 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
     val metadata = json.extract[%]
     val JField(_, JObject(obj)) = json \ "object"
     return (metadata, obj)
-  }
-
-  private class PutFileRequest(request: Request) {
-    def put_file(file: File, content_type: String) = request next {
-      import org.apache.http.client.methods.HttpPut
-      import org.apache.http.entity.FileEntity
-      val put_method = new HttpPut
-      put_method setEntity new FileEntity(file, content_type)
-      Request.mimic(put_method) _
-    }
   }
 
 }
