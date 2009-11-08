@@ -11,6 +11,7 @@ class RiakkaProject(info: ProjectInfo) extends DefaultProject(info) {
   val json = "net.liftweb" % "lift-json" % "1.1-SNAPSHOT"
 
   val lag_net = "lag.net repository" at "http://www.lag.net/repo"
+  val databinder_net = "databinder.net repository" at "http://www.databinder.net/repo"
   val codehaus = "codehaus repository" at "http://repository.codehaus.org/"
   val scala_snapshots = "scala snapshots" at "http://scala-tools.org/repo-snapshots/"
 
