@@ -69,7 +69,7 @@ Fire a Scala console (within `sbt`):
         scala> val linked_json = ("am_i_being_linked?" -> true) ~ ("a", "b")  // a neat DSL to create JSON
         scala> val (linked_json_metadata, _) = db save_with_response (%('test -> "linked"), linked_json)  // we persist that one
         scala> val link = Link('test, linked_json_metadata.key, "_")  // we create the link
-        scala> db save (metadata.link_+(link)_, json) // we pass-in a new metadata object, which contains the link
+        scala> db save (metadata.link_+(link), json) // we pass-in a new metadata object, which contains the link
 
  - walk the original object and retrieve the linked one
 
