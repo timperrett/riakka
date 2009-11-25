@@ -68,12 +68,12 @@ Fire a Scala console (within `sbt`):
 
         scala> val linked_json = ("am_i_being_linked?" -> true) ~ ("a", "b")  // a neat DSL to create JSON
         scala> val (linked_json_metadata, _) = db save_with_response (%('test -> "linked"), linked_json)  // we persist that one
-        scala> metadata.link_+(Link('test, linked_json_metadata.key, "_"))  // we add the link
-        scala> db save (metadata, json) // we update the original object, which now contains a link
+        scala> val link = Link('test, linked_json_metadata.key, "_")  // we create the link
+        scala> db save (metadata.link_+(link)_, json) // we pass-in a new metadata object, which contains the link
 
  - walk the original object and retrieve the linked one
 
-        scala> val linked_objects = db walk (metadata, WalkSpec('test, None, None)) // only specifying a constraint on the bucket
+        scala> val linked_objects = db walk (metadata, ^^('test)) // check the docs for ^^ / link-walking spec
         scala> val (_, first_linked_object) = linked_objects first
         scala> first_linked_object.to_json // right?
 
