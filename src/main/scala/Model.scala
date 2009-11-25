@@ -8,28 +8,28 @@ import Extraction._
 import java.util.Date
 
 /* Domain objects that model the interaction with Riak. */
-/* Scala 2.8 with named- and default-args, copy and such shall bring some goodness here. */
+/* Scala 2.8 with named- and default-args, copy and such shall bring some serious goodness here. */
+
+// class %, pronounced "metadata"
+class %(val bucket: Symbol, val key: String, val links: List[Link], val vclock: Option[String], val vtag: Option[String], val lastmod: Option[Date]) {
+  def id = bucket.name + "/" + key
+  def link_+(link: Link*) = new %(bucket, key, link.toList ::: links, vclock, vtag, lastmod)
+}
 
 object % {
-  def apply(id: (Symbol, String)): % = new %(id._1.name, id._2, None, None, None)
-  //def apply(m: %, links: Link*): % = new %(m.bucket, m.key, links.toList, m.vclock, m.vtag, m.lastmod)
+  def apply(id: (Symbol, String)): % = new %(id._1, id._2, List(), None, None, None)
+  def apply(id: (Symbol, String), links: Seq[Link]): % = new %(id._1, id._2, links.toList, None, None, None)
 }
-
-class %(val bucket: String, val key: String, val vclock: Option[String], val vtag: Option[String], val lastmod: Option[Date]) {
-  def id = bucket + "/" + key
-  private var links: List[List[String]] = List() // this mutable thingy to be replaced
-  def link_+(link: Link) = links ::= List(link.bucket.name, link.key, link.tag)
-}
-// make bucket a Symbol, when upgrading to cutting-edge lift-json (thanks Joni!)
 
 case class Link(val bucket: Symbol, val key: String, val tag: String)
 
-case class WalkSpec(bucket: Symbol, tag: Option[String], accumulate: Option[Boolean]) {
+// class ^^, pronounced "link-walking specification"
+case class ^^(bucket: Symbol, tag: Option[String], accumulate: Option[Boolean]) {
   override def toString = bucket.name + "," + tag.getOrElse("_") + "," + accumulate.getOrElse("_")
 }
 
-class RichJValue(value: JValue) {
-  def to_json = pretty(render(value))
+object ^^ {
+  def apply(bucket: Symbol) = new ^^(bucket, None, None)
 }
 
 private[riakka] trait Logging {

@@ -88,8 +88,8 @@ There is also support for `If-None-Match`, attachments and more. Have a look at 
 To be done
 ----------
 
- - Much better support of the (known) HTTP API, including schemas (read/write masks), allow_mult, specifying N/R/W values and datastore info.
- - Support for entities, transparent serialization/deserialization to/from JSON. Should be not a big deal, as lift-json supports it wonderfully.
+ - Much better support of the (known) HTTP API, including schemas (read/write masks), allow_mult, specifying R/W values and datastore info.
+ - Support for entities (as well as plain structs made up of Lists, Tuples, etc => all things convertable to JObject), transparent serialization/deserialization to/from JSON. Should be not a big deal, as lift-json supports it wonderfully.
  - Make concepts more straightforward, improve documentation and test coverage, as usual.
 
 Needless to say, fork and send pull requests. And make use of Github's issue tracker, too.

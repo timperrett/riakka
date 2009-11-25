@@ -9,7 +9,9 @@ import java.io._
 
 object Jiak {
   def init = new Jiak("localhost", 8098, "jiak")
-  implicit def jvalue_to_richjvalue(value: JValue) = new RichJValue(value)
+  implicit def enrich_jvalue(value: JValue) = new {
+    def to_json = pretty(render(value))
+  } // can this be done just by importing riakka._ ?
 }
 
 class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends Logging {
@@ -18,16 +20,13 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
   private val http = new Http with RiakkaExceptionHandler
   private val db = :/(hostname, port) / jiak_base
 
-  /** Find all keys of a given bucket and return in a Seq. */
+  /** Find all element keys of a given bucket and return in a Seq. */
   def find_all(bucket: Symbol): Seq[String] = {
     val response = http(db / bucket.name as_str)
     for { JString(key) <- parse(response) \\ "keys" } yield key
   }
-  // later on support: def find_all[A](implicit m: scala.reflect.Manifest[A]): Seq[A]
 
   def get(metadata: %): (%, JObject) = parse(http(db / metadata.id as_str))
-  // later on support: def get[A](metadata: %)(implicit m: scala.reflect.Manifest[A]): A
-  // as well as plain structs made up of Lists, Tuples, etc => all things convertable to JObject
 
   def conditional_get(metadata: %): (%, Option[JObject]) = {
     try {
@@ -62,7 +61,7 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
 
   def delete(metadata: %): Unit = http((db / metadata.id DELETE) >|)
 
-  def walk(metadata: %, specs: WalkSpec*): Seq[(%, JObject)] = {
+  def walk(metadata: %, specs: ^^ *): Seq[(%, JObject)] = {
     val response = http(db / metadata.id / specs.mkString("/") as_str)
     val json = parse(response)
     val JField(_, JArray(List(JArray(riak_objects)))) = (json \ "results")
@@ -73,20 +72,37 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
 
   private implicit def tuple_to_json(metadata: %, obj: JValue): String = {
     implicit val formats = Serialization.formats(NoTypeHints)
-    val m = decompose(metadata)
+
+    val m = decompose(metadata) map {
+      case JObject(JField("tag", t) :: JField("key", k) :: JField("bucket", b) :: Nil) => {
+        val elems = Map("bucket" -> b, "key" -> k, "tag" -> t)
+        JArray(elems("bucket") :: elems("key") :: elems("tag") :: Nil)
+      }
+      case x => x
+    }
+
     val riak_object = m merge JObject(JField("object", obj) :: Nil)
-    log.info("Sending to server\n" + pretty(render(riak_object)))
+    log.debug("Sending to server\n" + pretty(render(riak_object)))
     compact(render(riak_object))
   }
 
   private implicit def jvalue_to_tuple(json: JValue): (%, JObject) = {
-    log.info("Receiving from server\n" + pretty(render(json)))
+    log.debug("Receiving from server\n" + pretty(render(json)))
     implicit val formats = new DefaultFormats {
         override def dateFormatter = new java.text.SimpleDateFormat("E, dd MMM yyyy HH:mm:ss ZZZ")
       }
-    val metadata = json.extract[%]
+
+    val json2 = json map {
+        case JField("links", arr) => arr map {
+          case JArray(JString(b) :: JString(k) :: JString(t) :: Nil) => ("bucket" -> b) ~ ("key" -> k) ~ ("tag" -> t)
+          case x => x
+        }
+        case x => x
+      }
+
+    val metadata = json2.extract[%]
     val JField(_, JObject(obj)) = json \ "object"
-    return (metadata, obj)
+    (metadata, obj)
   }
 
 }
