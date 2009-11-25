@@ -21,6 +21,8 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter with Logging
   val default_bucket = Symbol("riakka-" + rand())
   val metadata = %(default_bucket -> random_key)
 
+  // TODO this really needs to be refactored with a real-world example! (and do something with the proliferation of metadatas)
+
   describe("A given JSON object") {
 
     it("should be persisted and retrieved") {
@@ -61,21 +63,26 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter with Logging
     }
 
     it("should set and walk links") { // make this more clear
-      val (first_metadata, first_object) = db get metadata
-      val linked_object: JObject = ("am_i_being_linked?" -> true)
-      val linked_object_2: JObject = ("am_i_being_linked?" -> "also true")
-      val (linked_object_metadata, _) = db save_with_response (%(default_bucket -> random_key_2), linked_object)
-      db save (%(default_bucket -> random_key_3), linked_object_2)
+      val (m_obj, obj) = db get metadata
+      val child1 = ("am_i_being_linked?" -> true) ~ ("a" -> 1)
+      val child2 = ("am_i_being_linked?" -> "also true") ~ ("b" -> 2)
 
-      val l1 = Link(default_bucket, random_key_2, "_")
-      val l2 = Link(default_bucket, random_key_3, "_")
+      val m2 = %(default_bucket -> random_key_2)
+      val m3 = %(default_bucket -> random_key_3)
 
-      db save (first_metadata.link_+(l1, l2), first_object)
+      val (m_child1, _) = db save_with_response (m2, child1)
+      db save (m3, child2)
 
-      val linked_objects = db walk (metadata, ^^(default_bucket))
-      assert(linked_objects exists { _._2 == linked_object })
+      val link1 = Link(m2)
+      val link2 = Link(m3)
 
-      log.info("Date of last modification ===> " + linked_object_metadata.lastmod.getOrElse("Sorry dude, no date here"))
+      db save (m_obj.link_+(link1, link2), obj)
+
+      val children = db walk (metadata, ^^(default_bucket))
+      assert(children exists { _._2 == child1 })
+      assert(children exists { _._2 == child2 })
+
+      log.info("Date of last modification ===> " + m_child1.lastmod.getOrElse("Sorry dude, no date here"))
     }
 
     it("should be deleted") {

@@ -23,6 +23,10 @@ object % {
 
 case class Link(val bucket: Symbol, val key: String, val tag: String)
 
+object Link {
+  def apply(metadata: %) = new Link(metadata.bucket, metadata.key, "_")
+}
+
 // class ^^, pronounced "link-walking specification"
 case class ^^(bucket: Symbol, tag: Option[String], accumulate: Option[Boolean]) {
   override def toString = bucket.name + "," + tag.getOrElse("_") + "," + accumulate.getOrElse("_")
