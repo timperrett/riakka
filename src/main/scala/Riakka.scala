@@ -17,7 +17,7 @@ object Jiak {
 class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends Logging {
 
   import dispatch._
-  private val http = new Http with RiakkaExceptionHandler
+  private def http = new Http with RiakkaExceptionHandler
   private val db = :/(hostname, port) / jiak_base
 
   /** Find all element keys of a given bucket and return in a Seq. */
