@@ -21,7 +21,7 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter with Logging
   val default_bucket = Symbol("riakka-" + rand())
   val metadata = %(default_bucket -> random_key)
 
-  // TODO this really needs to be refactored with a real-world example! (and do something with the proliferation of metadatas)
+  // TODO this really needs to be refactored with a real-world example! (and do something about metadata proliferation)
 
   describe("A given JSON object") {
 

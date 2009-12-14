@@ -44,7 +44,17 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
   /** Gets an attachment from raw -- WARNING: only works in Riak trunk **/
   def get_attachment(metadata: %, out: OutputStream): Unit = http(:/(hostname, port) / "raw" / metadata.id >>> out)
 
-  def save(metadata: %, obj: JValue): Unit = {
+  def save_async(metadata: %, obj: JValue) {
+    scala.actors.Actor.actor {
+      do_save(metadata, obj)
+    }
+  }
+
+  def save(metadata: %, obj: JValue) {
+    do_save(metadata, obj)
+  }
+
+  private def do_save(metadata: %, obj: JValue) {
     http((db / metadata.id <:< Map("Content-Type" -> "application/json") <<< tuple_to_json(metadata, obj) >|))
   }
 
@@ -55,7 +65,17 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
   }
 
   /** Saves an attachment to raw -- WARNING: only works in Riak trunk **/
-  def save_attachment(metadata: %, file: File, content_type: String) = {
+  def save_attachment(metadata: %, file: File, content_type: String) {
+    do_save_attachment(metadata, file, content_type)
+  }
+
+  def save_attachment_async(metadata: %, file: File, content_type: String) {
+    scala.actors.Actor.actor {
+      do_save_attachment(metadata, file, content_type)
+    }
+  }
+
+  private def do_save_attachment(metadata: %, file: File, content_type: String) {
     http(:/(hostname, port) / "raw" / metadata.id <<< (file, content_type) >|)
   }
 
