@@ -36,10 +36,6 @@ object ^^ {
   def apply(bucket: Symbol) = new ^^(bucket, None, None)
 }
 
-private[riakka] trait Logging {
-  val log = net.lag.logging.Logger.get
-}
-
 import dispatch._
 
 private[riakka] trait WhenAware {
@@ -47,7 +43,7 @@ private[riakka] trait WhenAware {
 }
 
 /* This behaviour gives us fine-grained control on dealing with low-level exceptions */
-private[riakka] trait RiakkaExceptionHandler extends WhenAware {
+private[riakka] trait RiakkaExceptionHandler extends Http {
   abstract override def when[T](check: Int => Boolean)(handler: Handler[T]): T = {
     try {
       super.when(check)(handler)

@@ -85,7 +85,7 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
     val response = http(db / metadata.id / specs.mkString("/") as_str)
     val json = parse(response)
     val JField(_, JArray(List(JArray(riak_objects)))) = (json \ "results")
-    for (riak_object <- riak_objects) yield riak_object
+    for (riak_object <- riak_objects) yield jvalue_to_tuple(riak_object)
   }
 
   /** Local implicit functions */
@@ -102,12 +102,12 @@ class Jiak(val hostname: String, val port: Int, val jiak_base: String) extends L
     }
 
     val riak_object = m merge JObject(JField("object", obj) :: Nil)
-    log.debug("Sending to server\n" + pretty(render(riak_object)))
+    debug("Sending to server\n" + pretty(render(riak_object)))
     compact(render(riak_object))
   }
 
   private implicit def jvalue_to_tuple(json: JValue): (%, JObject) = {
-    log.debug("Receiving from server\n" + pretty(render(json)))
+    debug("Receiving from server\n" + pretty(render(json)))
     implicit val formats = new DefaultFormats {
         override def dateFormatter = new java.text.SimpleDateFormat("E, dd MMM yyyy HH:mm:ss ZZZ")
       }

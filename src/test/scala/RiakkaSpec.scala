@@ -9,9 +9,8 @@ import JsonDSL._
 import JsonParser._
 import Extraction._
 
-class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter with Logging {
+class BaseSpec extends Spec with ShouldMatchers with Logging {
 
-  // override def beforeAll
   val db = Jiak.init
 
   def rand() = java.util.UUID.randomUUID.toString
@@ -82,7 +81,7 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter with Logging
       assert(children exists { _._2 == child1 })
       assert(children exists { _._2 == child2 })
 
-      log.info("Date of last modification ===> " + m_child1.lastmod.getOrElse("Sorry dude, no date here"))
+      info("Date of last modification ===> " + m_child1.lastmod.getOrElse("Sorry dude, no date here"))
     }
 
     it("should be deleted") {
@@ -96,7 +95,7 @@ class BaseSpec extends Spec with ShouldMatchers with BeforeAndAfter with Logging
 
     it ("should clean up the whole mess created by the test suite") {
       val all = db find_all default_bucket
-      log.info("These are all the docs in " + default_bucket.name + ": " + all.mkString(", "))
+      info("These are all the docs in " + default_bucket.name + ": " + all.mkString(", "))
 
       all foreach { key =>
         db delete %(default_bucket -> key)
