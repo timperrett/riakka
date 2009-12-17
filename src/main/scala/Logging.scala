@@ -2,6 +2,8 @@ package riakka
 
 import org.slf4j.{Logger, LoggerFactory}
 
+// logger borrowed from Lift until we get a decent standard way of logging in Scala
+
 trait LiftLogger {
   def isTraceEnabled: Boolean = false
   def trace(msg: => AnyRef): Unit = ()
